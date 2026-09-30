@@ -43,6 +43,13 @@ export function formatHieromartyrs(texts:string[]):string {
   return stripped+(i===last?', пресвитеров':'');
  }).join('; ');
 }
+export function cleanCalendarComments(text:string):string {
+ // Geographic epithets are part of the name, unlike parenthetical calendar notes.
+ text=text.replace(/\(([^()]*)\)/g,(_match,inside:string)=>
+  /^(?:[А-ЯЁа-яё\u0301-]+(?:\s+[А-ЯЁа-яё\u0301-]+)*)$/.test(inside)&&/(?:ского|цкого|ской|цкой)$/.test(noAccent(inside))?' '+inside:'');
+ const explanation=/,\s*(?:приня[\u0301]?вш|крести[\u0301]?вш|пострада[\u0301]?вш|жи[\u0301]?вш|сконча[\u0301]?вш|роди[\u0301]?вш|подвиза[\u0301]?вш|основа[\u0301]?вш|бы[\u0301]?вш|в миру(?=[\s,;]|$)|при крещении(?=[\s,;]|$)|котор|изве[\u0301]?стн|имену[\u0301]?ем|называ[\u0301]?ем|обрати[\u0301]?вш|(?:отца|матери|брата|сестры)\s+святых(?=[\s,;]|$)|творца\s+канонов(?=[\s,;]|$))[\s\S]*?(?=,\s*(?:сщмчч?|сщмцц?|прмчч?|прмцц?|вмчч?|вмцц?|мчч?|мцц?|свтт?|прпп?|правв?|блгвв?|блжж?|апп?|равноапп?|прорр?|испп?|бессрр?|страстт?|праотт?|столпп?|чудд?|юродд?)\.|;|$)/gi;
+ return clean(text.replace(explanation,'')).replace(/[,;\s]+$/,'');
+}
 export function parseCalendar(html:string,date:string):CalendarResult{
  const{document}=parseHTML(html),items=[...document.querySelectorAll('.day__text ul[class*="paragraph-"] > li')];
  if(!items.length)throw new Error('На странице календаря не найден список святых. Попробуйте другую дату или повторите загрузку.');
@@ -51,7 +58,7 @@ export function parseCalendar(html:string,date:string):CalendarResult{
   const original=clean(li.textContent??''),plain=noAccent(original);
   if(/^(?:Собор(?:\s|$)|Память.*(?:отц|отец))/i.test(plain)){
    for(const e of li.querySelectorAll('.secondary-content, em, i'))e.remove();
-   endings.push({label:'',text:clean(li.textContent??'').replace(/\([^)]*\d[^)]*\)/g,'').trim(),allBold:true});continue;
+   endings.push({label:'',text:cleanCalendarComments(li.textContent??''),allBold:true});continue;
   }
   const links=[...li.querySelectorAll('a')].map(a=>a.getAttribute('href')??'');
   if(links.some(h=>/\/ikona-/.test(h))||(!links.some(h=>/\/sv[v]?-/.test(h))&&/Божией Матери|Богородиц|Господн|Предпраздн|Попраздн|Отдание|Пасха|Рождество Христово|Богоявление|Преображение|Вознесение|Пятидесятниц/i.test(plain)))continue;
@@ -75,10 +82,8 @@ export function parseCalendar(html:string,date:string):CalendarResult{
   segments.push({body:body.slice(segmentStart),classification:active});
   for(const segment of segments){
    const k=segment.classification;
-   let piece=clean(segment.body);
-   // Calendar biographical explanations are not part of the liturgical name.
-   // Apply after mixed ranks are split, so a later saint is preserved.
-   piece=piece.replace(/,\s*(?:приня[\u0301]?вш|крести[\u0301]?вш|пострада[\u0301]?вш|жи[\u0301]?вш|сконча[\u0301]?вш|роди[\u0301]?вш|подвиза[\u0301]?вш|основа[\u0301]?вш)[\s\S]*?(?=,\s*(?:сщмчч?|сщмцц?|прмчч?|прмцц?|вмчч?|вмцц?|мчч?|мцц?|свтт?|прпп?|правв?|блгвв?|блжж?|апп?|равноапп?|прорр?|испп?|бессрр?|страстт?|праотт?|столпп?|чудд?|юродд?)\.|;|$)/i,'');
+   // Clean after splitting mixed ranks to preserve separately commemorated saints.
+   let piece=cleanCalendarComments(segment.body);
    piece=piece.replace(/(?:сщмчч?|прмчч?|вмчч?|мчч?|мцц?|свтт?|прпп?)\.\s+/gi,(prefix)=>classify(prefix)?.rank===k.rank?'':prefix);
    const plural=k.plural||/и с ним|и ученик|и .*дев|\d+-?ти:/.test(noAccent(piece));
    entries.push({text:piece,original,rank:k.rank,plural,female:k.female,year,order});
