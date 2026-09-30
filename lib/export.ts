@@ -1,7 +1,7 @@
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import type {DocumentBlock} from './calendar';
 export function buildWord(blocks:DocumentBlock[],size:number){
- return new Document({creator:'Святые дня',styles:{default:{document:{run:{font:'Times New Roman',size:Math.round(size*2),color:'000000'},paragraph:{spacing:{before:0,after:0,line:Math.round(size*20*1.15)}}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,bottom:1134,left:1134,right:1134}}},children:blocks.filter(b=>b.text.trim()).map(b=>new Paragraph({spacing:{before:b.allBold?Math.round(size*10):0,after:0,line:Math.round(size*20*1.15)},children:[...(b.label?[new TextRun({text:b.label.trim()+' ',bold:true})]:[]),new TextRun({text:b.text.trim(),bold:!!b.allBold})]}))}]});
+ return new Document({creator:'Святые дня',styles:{default:{document:{run:{font:'Times New Roman',size:Math.round(size*2),color:'000000'},paragraph:{spacing:{before:0,after:0,line:276}}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,bottom:1134,left:1134,right:1134}}},children:blocks.filter(b=>b.text.trim()).map(b=>new Paragraph({spacing:{before:b.allBold?Math.round(size*10):0,after:0,line:276},children:[...(b.label?[new TextRun({text:b.label.trim()+' ',bold:true})]:[]),new TextRun({text:b.text.trim(),bold:!!b.allBold})]}))}]});
 }
 function save(blob:Blob,name:string){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 export async function exportDocument(blocks:DocumentBlock[],date:string,kind:'pdf'|'word',status:(s:string)=>void){
