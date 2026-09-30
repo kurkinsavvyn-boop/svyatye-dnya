@@ -32,6 +32,17 @@ function abbreviation(rank:number,plural:boolean,female:boolean){
  const f:Record<number,[string,string]>={5:['Вмц.','Вмцц.'],6:['Сщмц.','Сщмцц.'],7:['Прмц.','Прмцц.'],8:['Мц.','Мцц.']};
  return(female&&f[rank]?f[rank]:labels[rank])[plural?1:0];
 }
+// Keep calendar groups and chronology, with one shared title for presbyters.
+export function formatHieromartyrs(texts:string[]):string {
+ const role=/,\s*пре[\u0301]?сви[\u0301]?те[\u0301]?р(?:а|ов)(?=[;,.\s]|$)/gi;
+ const counts=texts.map(text=>[...text.matchAll(role)].length);
+ if(counts.reduce((a,b)=>a+b,0)<2)return texts.join('; ');
+ const last=counts.length-1-[...counts].reverse().findIndex(count=>count>0);
+ return texts.map((text,i)=>{
+  const stripped=clean(text.replace(role,''));
+  return stripped+(i===last?', пресвитеров':'');
+ }).join('; ');
+}
 export function parseCalendar(html:string,date:string):CalendarResult{
  const{document}=parseHTML(html),items=[...document.querySelectorAll('.day__text ul[class*="paragraph-"] > li')];
  if(!items.length)throw new Error('На странице календаря не найден список святых. Попробуйте другую дату или повторите загрузку.');
@@ -74,7 +85,7 @@ export function parseCalendar(html:string,date:string):CalendarResult{
  const blocks:DocumentBlock[]=[];
  for(let rank=0;rank<labels.length;rank++){
   const group=entries.filter(e=>e.rank===rank).sort((a,b)=>(a.year??Infinity)-(b.year??Infinity)||a.order-b.order);
-  if(group.length){const primary=rank===0&&group.length===1&&/первоверховных апостолов/i.test(noAccent(group[0].original));blocks.push({label:primary?'Первоверховных апостолов':abbreviation(rank,group.length>1||group.some(e=>e.plural),group.every(e=>e.female)),text:group.map(e=>e.text).join('; '),...(primary?{allBold:true}:{})});}
+  if(group.length){const primary=rank===0&&group.length===1&&/первоверховных апостолов/i.test(noAccent(group[0].original));blocks.push({label:primary?'Первоверховных апостолов':abbreviation(rank,group.length>1||group.some(e=>e.plural),group.every(e=>e.female)),text:rank===6?formatHieromartyrs(group.map(e=>e.text)):group.map(e=>e.text).join('; '),...(primary?{allBold:true}:{})});}
  }
  return{date,source:'https://azbyka.ru/days/'+date,blocks:[...blocks,...endings],entries,warnings,groupCount:entries.length+endings.length};
 }
