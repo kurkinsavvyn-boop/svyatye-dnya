@@ -1,7 +1,7 @@
-import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { Document, Packer, Paragraph, TextRun, LineRuleType } from 'docx';
 import type {DocumentBlock} from './calendar';
 export function buildWord(blocks:DocumentBlock[],size:number){
- return new Document({creator:'Святые дня',styles:{default:{document:{run:{font:'Times New Roman',size:Math.round(size*2),color:'000000'},paragraph:{spacing:{before:0,after:0,line:276}}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,bottom:1134,left:1134,right:1134}}},children:blocks.filter(b=>b.text.trim()).map(b=>new Paragraph({spacing:{before:b.allBold?Math.round(size*10):0,after:0,line:276},children:[...(b.label?[new TextRun({text:b.label.trim()+' ',bold:true})]:[]),new TextRun({text:b.text.trim(),bold:!!b.allBold})]}))}]});
+ return new Document({creator:'Святые дня',styles:{default:{document:{run:{font:'Times New Roman',size:Math.round(size*2),color:'000000'},paragraph:{spacing:{before:0,after:0,line:360,lineRule:LineRuleType.AUTO}}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,bottom:1134,left:1134,right:1134}}},children:blocks.filter(b=>b.text.trim()).map(b=>new Paragraph({spacing:{before:b.allBold?Math.round(size*10):0,after:0,line:360,lineRule:LineRuleType.AUTO},children:[...(b.label?[new TextRun({text:b.label.trim()+' ',bold:true})]:[]),new TextRun({text:b.text.trim(),bold:!!b.allBold})]}))}]});
 }
 function save(blob:Blob,name:string){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 export async function exportDocument(blocks:DocumentBlock[],date:string,kind:'pdf'|'word',status:(s:string)=>void){
@@ -16,11 +16,21 @@ export async function exportDocument(blocks:DocumentBlock[],date:string,kind:'pd
   async function render(size:number){
    const blob=await Packer.toBlob(buildWord(blocks,size));host.replaceChildren();
    await renderAsync(blob,host,host,{inWrapper:false,breakPages:false,ignoreLastRenderedPageBreak:true,ignoreFonts:false,className:'print-docx',useBase64URL:true});
+   // Paragraphs need their own size: docx-preview applies run sizes to spans,
+   // so an inherited paragraph size can produce overlapping lines.
+   for (const paragraph of host.querySelectorAll<HTMLElement>('section article p')) {
+    paragraph.style.fontSize = size + 'pt';
+    paragraph.style.lineHeight = '1.5';
+    paragraph.style.minHeight = '0';
+    paragraph.style.overflowWrap = 'normal';
+    paragraph.style.wordBreak = 'normal';
+    paragraph.style.hyphens = 'none';
+   }
    await document.fonts.ready;
    const page=host.querySelector('section') as HTMLElement|null;
    if(!page)throw new Error('Не удалось отобразить Word-документ.');
    const article=page.querySelector('article') as HTMLElement|null;
-   const style=getComputedStyle(page),available=(841.9-113.4)*96/72;
+   const available=(841.9-113.4)*96/72;
    const fits=!!article&&article.scrollHeight<=available-4&&page.scrollWidth<=page.clientWidth+1;
    page.style.background='#fff';page.style.color='#000';
    return{blob,page,fits};
