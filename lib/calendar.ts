@@ -60,7 +60,8 @@ export function parseCalendar(html:string,date:string):CalendarResult{
   for(const e of li.querySelectorAll('.secondary-content, em, i'))e.remove();
   let text=clean(li.textContent??'').replace(/\([^)]*\d[^)]*\)/g,'').replace(/\([^)]*[IVX]+\s*в[^)]*\)/g,'').replace(/\((?:[А-ЯЁа-яё\u0301-]+|в миру[^)]*)\)/g,(_m,offset,str)=>{const p=_m.slice(1,-1);return /(?:ского|цкого|ской|цкой)$/.test(noAccent(p))?' '+p:'';}).replace(/^(?:Перене[\u0301]?сение|Обре[\u0301]?тение)\s+(?:мощей|святых мощей)\s*/i,'').replace(/^(?:Славных и всехвальных )?первоверховных апостолов\s*/i,'Апп. ');
   text=clean(text).replace(/[;,\s]+$/,'');const c=classify(text);
-  if(!c){warnings.push('Проверьте лик: '+text);endings.push({label:'',text});continue;}
+  // Only the configured saint ranks enter the document; councils were handled above.
+  if(!c)continue;
   let body=clean(text.slice(c.consumed)).replace(/^и\s+(?=(?:евангелиста|ев\.))/i,'');
   if(/сщисп|прписп/.test(c.prefix))body+=' исп.';
   const segments:{body:string;classification:NonNullable<ReturnType<typeof classify>>}[]=[];
@@ -75,6 +76,9 @@ export function parseCalendar(html:string,date:string):CalendarResult{
   for(const segment of segments){
    const k=segment.classification;
    let piece=clean(segment.body);
+   // Calendar biographical explanations are not part of the liturgical name.
+   // Apply after mixed ranks are split, so a later saint is preserved.
+   piece=piece.replace(/,\s*(?:приня[\u0301]?вш|крести[\u0301]?вш|пострада[\u0301]?вш|жи[\u0301]?вш|сконча[\u0301]?вш|роди[\u0301]?вш|подвиза[\u0301]?вш|основа[\u0301]?вш)[\s\S]*?(?=,\s*(?:сщмчч?|сщмцц?|прмчч?|прмцц?|вмчч?|вмцц?|мчч?|мцц?|свтт?|прпп?|правв?|блгвв?|блжж?|апп?|равноапп?|прорр?|испп?|бессрр?|страстт?|праотт?|столпп?|чудд?|юродд?)\.|;|$)/i,'');
    piece=piece.replace(/(?:сщмчч?|прмчч?|вмчч?|мчч?|мцц?|свтт?|прпп?)\.\s+/gi,(prefix)=>classify(prefix)?.rank===k.rank?'':prefix);
    const plural=k.plural||/и с ним|и ученик|и .*дев|\d+-?ти:/.test(noAccent(piece));
    entries.push({text:piece,original,rank:k.rank,plural,female:k.female,year,order});
