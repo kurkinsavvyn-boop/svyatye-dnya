@@ -8,7 +8,7 @@ https://kurkinsavvyn-boop.github.io/svyatye-dnya/
 
 Версия GitHub Pages работает независимо от ChatGPT: календарь, шрифты и экспорт загружаются с GitHub. Аккаунт OpenAI не нужен. Доступность зависит от сети пользователя.
 
-Календарь содержит предыдущий, текущий и следующий годы. GitHub Actions еженедельно обновляет ближайшие даты и публикует сайт. Если источник недоступен, обновление останавливается, предыдущая публикация остаётся доступна. Нераспознанные записи сохраняются с предупреждением для проверки.
+Календарь содержит предыдущий, текущий и следующий годы. Публикация находится в папке docs. Автоматическое еженедельное обновление подготовлено в .github/pages-workflow.example.yml; для включения нужно перенести его в .github/workflows/pages.yml с доступом GitHub Actions. Если источник недоступен, обновление останавливается, предыдущая публикация остаётся доступна. Нераспознанные записи сохраняются с предупреждением для проверки.
 
 ## Разработка
 
@@ -24,7 +24,7 @@ Node.js 22.13+ и pnpm (версия указана в package.json).
 
 VITE_STATIC_CALENDAR=true SITE_BASE_PATH=/svyatye-dnya/ pnpm build:pages
 
-Результат: outputs/standalone/public. Публикация настроена в .github/workflows/pages.yml. Дополнительные годы можно подготовить через CALENDAR_FIRST_YEAR и CALENDAR_LAST_YEAR.
+Результат: outputs/standalone/public. Для публикации: VITE_STATIC_CALENDAR=true SITE_BASE_PATH=/svyatye-dnya/ pnpm package:pages, затем git add docs public/calendar, git commit и git push. GitHub Pages настроен на main /docs. Дополнительные годы можно подготовить через CALENDAR_FIRST_YEAR и CALENDAR_LAST_YEAR.
 
 ## Серверная версия
 
