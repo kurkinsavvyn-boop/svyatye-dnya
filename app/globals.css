@@ -159,3 +159,22 @@ body {
 .empty-paper h3{color:#a12f2f}.paper-watermark{background:#f8eeee}
 button:focus-visible,a:focus-visible{outline-color:#9a6416}
 @media(max-width:760px){.brand{font-size:25px}h1{font-size:32px}.panel-heading h2{font-size:23px}}
+
+.pdf-preview-dialog{max-width:940px!important;height:calc(100dvh - 40px)}
+.pdf-preview-stage{flex:1;min-height:0;overflow:auto;background:#eeece9;padding:24px}
+.pdf-page-viewport{width:100%}
+.pdf-page-frame{position:relative;margin:0 auto;background:white;box-shadow:0 3px 18px #2b25221a}
+.pdf-live-page{transform-origin:top left;position:absolute;top:0;left:0;color:#000;background:white}
+.pdf-live-page section{overflow:visible!important}
+.pdf-editable{cursor:text;border-radius:2px;outline:1px solid transparent;outline-offset:3px;white-space:pre-wrap;min-width:.4em}
+.pdf-editable:hover{outline-color:#a12f2f40}
+.pdf-editable:focus{outline:1px solid #a12f2f;background:#a12f2f05}
+.pdf-editable:empty{display:inline-block;min-width:1em;min-height:1em}
+.pdf-final-actions{display:flex;gap:12px;justify-content:flex-end}
+.pdf-final-actions button{height:46px;min-width:150px;border-radius:999px;font-size:16px}
+.pdf-update-status{display:flex;align-items:center;gap:7px;color:#6f6862;font-size:13px;margin:0 0 12px;min-height:20px}
+.pdf-preview-bottom{flex-shrink:0}
+.pdf-capture-host .pdf-editable{outline:none!important;background:transparent!important;cursor:default}
+@media(max-width:760px){.pdf-preview-dialog{height:calc(100dvh - 24px)}.pdf-preview-stage{padding:14px 10px}.pdf-final-actions button{min-width:0;flex:1}.pdf-preview-dialog .editor-title{font-size:25px!important}}
+
+.pdf-opening{display:flex;align-items:center;justify-content:center;gap:12px;min-height:300px;color:#6f6862}
