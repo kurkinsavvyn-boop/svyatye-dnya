@@ -31,7 +31,7 @@ export async function exportDocument(blocks:DocumentBlock[],date:string,kind:'pd
    if(!page)throw new Error('Не удалось отобразить Word-документ.');
    const article=page.querySelector('article') as HTMLElement|null;
    const available=(841.9-113.4)*96/72;
-   const fits=!!article&&article.scrollHeight<=available-4&&page.scrollWidth<=page.clientWidth+1;
+   const fits=!!article&&article.scrollHeight<=available-4&&article.scrollWidth<=article.clientWidth+1&&page.scrollWidth<=page.clientWidth+1;
    page.style.background='#fff';page.style.color='#000';
    return{blob,page,fits};
   }

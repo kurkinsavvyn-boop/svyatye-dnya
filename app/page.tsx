@@ -1,5 +1,5 @@
 'use client';
-import{useCallback,useEffect,useState}from 'react';
+import{useCallback,useEffect,useState,useRef}from 'react';
 import{ru}from 'date-fns/locale';
 import{Calendar}from '@/components/ui/calendar';
 import{Button}from '@/components/ui/button';
@@ -11,7 +11,12 @@ import type{CalendarResult,DocumentBlock}from '@/lib/calendar';
 function iso(d:Date){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function today(){const s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow'}).format(new Date());return new Date(s+'T12:00:00');}
 function display(d:Date){return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(d);}
+const staticCalendar=import.meta.env?.VITE_STATIC_CALENDAR==='true';
+const base=import.meta.env?.BASE_URL??'/';
 export default function Home(){
+ const requestRef=useRef<AbortController|null>(null);
+ const[range,setRange]=useState<{start:string;end:string}|null>(null);
+ useEffect(()=>{if(staticCalendar)fetch(base+'calendar/index.json').then(r=>{if(!r.ok)throw Error('Calendar unavailable');return r.json() as Promise<{start:string;end:string}>;}).then(setRange).catch(()=>setError('Календарь недоступен. Обновите страницу.'));return()=>requestRef.current?.abort();},[]);
  const[date,setDate]=useState<Date>(()=>today()),[month,setMonth]=useState<Date>(()=>today());
  const[result,setResult]=useState<CalendarResult|null>(null),[blocks,setBlocks]=useState<DocumentBlock[]>([]);
  const[loading,setLoading]=useState(false),[exporting,setExporting]=useState(false),[open,setOpen]=useState(false);
@@ -23,9 +28,10 @@ export default function Home(){
  useEffect(()=>{if(!readyFile){setPdfUrl(null);return;}const url=URL.createObjectURL(readyFile);setPdfUrl(url);return()=>URL.revokeObjectURL(url);},[readyFile]);
  useEffect(()=>{setDone(false);setShareStatus('');},[documentKey]);
  const generate=useCallback(async(selected:Date)=>{
+  requestRef.current?.abort();const controller=new AbortController();requestRef.current=controller;
   setLoading(true);setError('');setExportError('');setDone(false);setPrepared(null);setShareStatus('');
-  try{const r=await fetch('/api/calendar?date='+iso(selected),{cache:'no-store'}),data=await r.json() as CalendarResult&{error?:string};if(!r.ok)throw new Error(data.error??'Не удалось загрузить календарь.');setResult(data);setBlocks(data.blocks);setOpen(true);setDate(selected);return{date:data.date,groups:data.groupCount};}
-  catch(e){setError(e instanceof Error?e.message:'Ошибка загрузки');throw e;}finally{setLoading(false);}
+  try{const r=await fetch(staticCalendar?base+'calendar/'+iso(selected)+'.json':'/api/calendar?date='+iso(selected),{signal:controller.signal}),data=await (r.ok||!staticCalendar?r.json():Promise.reject(new Error('Дата недоступна. Выберите дату в диапазоне календаря сайта.'))) as CalendarResult&{error?:string};if(!r.ok)throw new Error(data.error??'Не удалось загрузить календарь.');if(controller.signal.aborted)return;setResult(data);setBlocks(data.blocks);setOpen(true);setDate(selected);return{date:data.date,groups:data.groupCount};}
+  catch(e){if(!controller.signal.aborted)setError(e instanceof Error?e.message:'Ошибка загрузки');throw e;}finally{if(requestRef.current===controller)setLoading(false);}
  },[]);
  useEffect(()=>{
   const context=(document as Document&{modelContext?:{registerTool:(tool:unknown,options:unknown)=>void}}).modelContext;
@@ -59,12 +65,12 @@ export default function Home(){
  }
  const editable=blocks.some(b=>b.text.trim());
  return<div className="site-shell">
-  <header className="topbar"><a className="brand" href="/"><span className="brand-mark"><BookOpen size={23}/></span><span>Святые дня</span></a><span className="top-meta">БОГОСЛУЖЕБНЫЙ СПИСОК</span></header>
+  <header className="topbar"><a className="brand" href={base}><span className="brand-mark"><BookOpen size={23}/></span><span>Святые дня</span></a><span className="top-meta">БОГОСЛУЖЕБНЫЙ СПИСОК</span></header>
   <main className="workspace"><div className="page-heading"><div><span className="eyebrow">ПОДГОТОВКА К СЛУЖБЕ</span><h1>Святые на выбранный день</h1><p>Выберите дату. Проверьте список. Скачайте для печати.</p></div><span className="format-badge"><FileText size={17}/>А4 · одна страница</span></div>
    <div className="working-grid"><section className="date-panel"><div className="panel-heading"><CalendarDays size={20}/><h2>Дата богослужения</h2></div><div className="selected-date">{display(date)}<span>По новому стилю</span></div>
-    <Calendar locale={ru} mode="single" required selected={date} onSelect={d=>{if(d){setDate(d);setError('');}}} month={month} onMonthChange={setMonth} weekStartsOn={1} captionLayout="dropdown" startMonth={new Date(1900,0)} endMonth={new Date(2100,11)} className="saints-calendar"/>
+    <Calendar locale={ru} mode="single" required selected={date} onSelect={d=>{if(d){setDate(d);setError('');}}} month={month} onMonthChange={setMonth} weekStartsOn={1} captionLayout="dropdown" startMonth={range?new Date(range.start+'T12:00:00'):new Date(1900,0)} endMonth={range?new Date(range.end+'T12:00:00'):new Date(2100,11)} disabled={range?{before:new Date(range.start+'T00:00:00'),after:new Date(range.end+'T23:59:59')}:undefined} className="saints-calendar"/>
     <div className="date-shortcuts"><Button variant="outline" onClick={()=>{const d=today();setDate(d);setMonth(d);}}>Сегодня</Button><div><Button variant="ghost" size="icon" aria-label="Предыдущий день" onClick={()=>{const d=new Date(date);d.setDate(d.getDate()-1);setDate(d);setMonth(d);}}><ChevronLeft size={18}/></Button><Button variant="ghost" size="icon" aria-label="Следующий день" onClick={()=>{const d=new Date(date);d.setDate(d.getDate()+1);setDate(d);setMonth(d);}}><ChevronRight size={18}/></Button></div></div>
-    <Button className="generate-button" disabled={loading} onClick={()=>void generate(date).catch(()=>{})}>{loading?<LoaderCircle className="spin" size={19}/>:<BookOpen size={19}/>} {loading?'Загружаем святых…':'Сгенерировать святых'}</Button><p className="source-note">Источник: <a href={'https://azbyka.ru/days/'+iso(date)} target="_blank" rel="noreferrer">«Азбука веры»</a></p>
+    <Button className="generate-button" disabled={loading} onClick={()=>void generate(date).catch(()=>{})}>{loading?<LoaderCircle className="spin" size={19}/>:<BookOpen size={19}/>} {loading?'Загружаем святых…':'Сгенерировать святых'}</Button><p className="source-note">{range&&<>Календарь: {range.start.slice(0,4)}–{range.end.slice(0,4)}. </>}Источник: <a href={'https://azbyka.ru/days/'+iso(date)} target="_blank" rel="noreferrer">«Азбука веры»</a></p>
     {error&&<div className="error-message" role="alert"><CircleAlert size={18}/><span>{error}</span></div>}
    </section><section className="document-panel"><div className="preview-heading"><div><span className="eyebrow">ДОКУМЕНТ ДЛЯ ПЕЧАТИ</span><h2>{result?'Список подготовлен':'Ваш список святых'}</h2></div>{result&&<Button variant="outline" onClick={()=>setOpen(true)}><Pencil size={16}/>Редактировать</Button>}</div>
     <div className="paper-stage">{result?<div className="paper result-paper" aria-label="Предварительный список святых">{blocks.map((b,i)=><p key={i} className={b.allBold?'all-bold':''}><strong>{b.label}{b.label?' ':''}</strong>{b.text}</p>)}</div>:<div className="paper empty-paper"><div className="paper-watermark"><FileText size={38}/></div><h3>Готов к заполнению</h3><p>Список появится после<br/>выбора даты и генерации</p><div className="paper-lines"><span/><span/><span/><span/></div><span className="paper-foot">Без заголовка и даты</span></div>}</div>
